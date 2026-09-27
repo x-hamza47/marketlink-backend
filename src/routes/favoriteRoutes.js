@@ -5,7 +5,12 @@ import { verifyJWT } from '../middleware/auth.js';
 const router = Router();
 router.use(verifyJWT);
 
-router.post('/:farmerId', c.toggleFavorite);
-router.get('/', c.listFavorites);
+// Farmers
+router.post('/farmer/:farmerId', c.toggleFavorite);
+router.get('/farmer', c.listFavorites);
+
+// Products
+router.post('/product/:productId', c.toggleFavoriteProduct);
+router.get('/product', c.listFavoriteProducts);
 
 export default router;

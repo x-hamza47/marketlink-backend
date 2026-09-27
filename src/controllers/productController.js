@@ -38,8 +38,14 @@ export const list = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     Product.find(filter)
-      .populate({ path: 'farmerId', populate: { path: 'userId', select: 'name' } })
-      .sort(`${sort} _id`)   // <-- add _id as a tiebreaker, guarantees stable ordering
+      .populate({
+        path: 'farmerId',
+        populate: [
+          { path: 'userId', select: 'name' },
+          { path: 'markets.marketId', select: 'name address' },
+        ],
+      })
+      .sort(`${sort} _id`)
       .skip((page - 1) * limit).limit(Number(limit)),
     Product.countDocuments(filter),
   ]);
@@ -49,7 +55,13 @@ export const list = asyncHandler(async (req, res) => {
 
 export const getOne = asyncHandler(async (req, res) => {
   const p = await Product.findById(req.params.id)
-    .populate({ path: 'farmerId', populate: { path: 'userId', select: 'name' } });
+    .populate({
+      path: 'farmerId',
+      populate: [
+        { path: 'userId', select: 'name' },
+        { path: 'markets.marketId', select: 'name address' },
+      ],
+    });
   if (!p) return fail(res, 'Product not found', 404);
   return ok(res, p);
 });

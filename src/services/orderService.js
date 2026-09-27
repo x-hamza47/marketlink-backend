@@ -3,7 +3,7 @@ import Order from '../models/Order.js';
 import FarmerProfile from '../models/FarmerProfile.js';
 import { createNotification } from './notificationService.js';
 
-export const placeOrder = async ({ customerId, farmerId, marketId, items, pickupDate, pickupWindow, notes }) => {
+export const placeOrder = async ({ customerId, farmerId, marketId, items, pickupDate, notes }) => {
   const farmer = await FarmerProfile.findById(farmerId);
   if (!farmer) throw Object.assign(new Error('Farmer not found'), { status: 404 });
 
@@ -22,22 +22,35 @@ export const placeOrder = async ({ customerId, farmerId, marketId, items, pickup
       price: product.price,
       quantity: item.quantity,
       unit: product.unit,
-      imageUrl: product.imageUrl, // <--- ADDED THIS LINE
+      imageUrl: product.imageUrl,
     });
     total += product.price * item.quantity;
   }
 
-  const dayName = new Date(pickupDate).toLocaleDateString('en-US', { weekday: 'short' });
-  const window = farmer.pickupWindows.find(w => w.day === dayName);
-  if (!window) throw Object.assign(new Error('No pickup window on this day'), { status: 400 });
+  // Find this farmer's entry for the chosen market
+  const marketEntry = farmer.markets.find(
+    (m) => m.marketId.toString() === marketId.toString()
+  );
+  if (!marketEntry) throw Object.assign(new Error('Farmer does not sell at this market'), { status: 400 });
 
-  const cutoff = new Date(new Date(pickupDate).getTime() - 12 * 60 * 60 * 1000);
+  const dayName = new Date(pickupDate).toLocaleDateString('en-US', { weekday: 'short' });
+  if (!marketEntry.operatingDays.includes(dayName)) {
+    throw Object.assign(new Error('Farmer is not available at this market on the selected day'), { status: 400 });
+  }
+
+  const pickupWindow = {
+    startTime: marketEntry.pickupStart,
+    endTime: marketEntry.pickupEnd,
+  };
+
+  const cutoffHours = marketEntry.cutoffHours ?? 12;
+  const cutoff = new Date(new Date(pickupDate).getTime() - cutoffHours * 60 * 60 * 1000);
   if (new Date() > cutoff) throw Object.assign(new Error('Cutoff has passed'), { status: 400 });
 
   const order = await Order.create({
     customerId, farmerId, marketId,
     items: snapshot, totalAmount: total,
-    pickupDate, pickupWindow: window,
+    pickupDate, pickupWindow,
     cutoffTime: cutoff, notes: notes || '',
   });
 

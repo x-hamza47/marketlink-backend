@@ -3,15 +3,16 @@ import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema(
   {
-    name:         { type: String, required: true, trim: true },
-    email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    phone:        { type: String, required: true, trim: true },
-    address:      { type: String, default: '' },
-    role:         { type: String, enum: ['customer', 'farmer', 'admin'], default: 'customer' },
-    isActive:     { type: Boolean, default: true },
-    isApproved:   { type: Boolean, default: true },
-    favorites:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'FarmerProfile' }],
+    phone: { type: String, required: true, trim: true },
+    address: { type: String, default: '' },
+    role: { type: String, enum: ['customer', 'farmer', 'admin'], default: 'customer' },
+    isActive: { type: Boolean, default: true },
+    isApproved: { type: Boolean, default: true },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FarmerProfile' }],
+    favoriteProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   },
   { timestamps: true }
 );

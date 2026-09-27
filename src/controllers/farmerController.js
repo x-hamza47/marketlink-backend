@@ -15,7 +15,7 @@ export const list = asyncHandler(async (req, res) => {
 export const getOne = asyncHandler(async (req, res) => {
   const farmer = await FarmerProfile.findById(req.params.id)
     .populate('userId', 'name email phone')
-    .populate('markets', 'name address lat lng');
+    .populate('markets.marketId', 'name address lat lng');;
   if (!farmer) return fail(res, 'Farmer not found', 404);
   return ok(res, farmer);
 });
