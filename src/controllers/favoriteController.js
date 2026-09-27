@@ -1,0 +1,27 @@
+import User from '../models/User.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { ok } from '../utils/response.js';
+
+export const toggleFavorite = asyncHandler(async (req, res) => {
+  const { farmerId } = req.params;
+  const user = await User.findById(req.user._id);
+  const idx = user.favorites.findIndex(f => f.toString() === farmerId);
+
+  if (idx >= 0) {
+    user.favorites.splice(idx, 1);
+    await user.save();
+    return ok(res, { favorited: false }, 'Removed from favorites');
+  }
+  user.favorites.push(farmerId);
+  await user.save();
+  return ok(res, { favorited: true }, 'Added to favorites');
+});
+
+export const listFavorites = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .populate({
+      path: 'favorites',
+      populate: { path: 'userId', select: 'name email phone' }
+    });
+  return ok(res, user.favorites);
+});
