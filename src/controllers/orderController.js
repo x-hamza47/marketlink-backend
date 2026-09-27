@@ -21,7 +21,7 @@ export const create = asyncHandler(async (req, res) => {
 export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customerId: req.user._id })
     .populate({ path: 'farmerId', select: 'stallName location' })
-    .populate('markets.marketId', 'name address')
+    .populate('marketId', 'name address')
     .sort('-createdAt');
   return ok(res, orders);
 });

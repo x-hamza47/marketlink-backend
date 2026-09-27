@@ -30,7 +30,7 @@ export const registerFarmer = asyncHandler(async (req, res) => {
     email,
     password,
     phone,
-    address,  
+    address,
     stallName,
     contactPerson,
     description,
