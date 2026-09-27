@@ -21,7 +21,7 @@ export const create = asyncHandler(async (req, res) => {
 export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customerId: req.user._id })
     .populate({ path: 'farmerId', select: 'stallName location' })
-    .populate('marketId', 'name address')
+    .populate('markets.marketId', 'name address')
     .sort('-createdAt');
   return ok(res, orders);
 });
@@ -33,13 +33,40 @@ export const farmerOrders = asyncHandler(async (req, res) => {
   const farmer = await FarmerProfile.findOne({ userId: req.user._id });
   if (!farmer) return fail(res, 'Farmer profile missing', 400);
 
-  const orders = await Order.find({ farmerId: farmer._id })
-    .populate('customerId', 'name phone email')
-    .sort('-createdAt');
+  const {
+    search, status, marketId,
+    page = 1, limit = 10, sort = '-createdAt',
+  } = req.query;
 
-  return ok(res, orders);
+  const filter = { farmerId: farmer._id };
+  if (status) filter.status = status;
+  if (marketId) filter.marketId = marketId;
+
+  let customerIds = null;
+  if (search) {
+    const User = (await import('../models/User.js')).default;
+    const matches = await User.find({ name: new RegExp(search, 'i') }).select('_id');
+    customerIds = matches.map((u) => u._id);
+    filter.customerId = { $in: customerIds };
+  }
+
+  const [items, total] = await Promise.all([
+    Order.find(filter)
+      .populate('customerId', 'name phone email')
+      .populate('marketId', 'name address')
+      .sort(`${sort} _id`)
+      .skip((page - 1) * limit)
+      .limit(Number(limit)),
+    Order.countDocuments(filter),
+  ]);
+
+  return ok(res, {
+    items,
+    total,
+    page: Number(page),
+    pages: Math.ceil(total / limit),
+  });
 });
-
 // ────────────────────────────────────────────────────────────
 // FARMER INSIGHTS — Total / pending / revenue / top products
 // ────────────────────────────────────────────────────────────
@@ -242,4 +269,77 @@ export const modify = asyncHandler(async (req, res) => {
   await order.save();
 
   return ok(res, order, 'Order updated');
+});
+
+// ────────────────────────────────────────────────────────────
+// FARMER RECENT ORDERS — last N orders for Overview page
+// ────────────────────────────────────────────────────────────
+export const farmerRecentOrders = asyncHandler(async (req, res) => {
+  const farmer = await FarmerProfile.findOne({ userId: req.user._id });
+  if (!farmer) return fail(res, 'Farmer profile missing', 400);
+
+  const orders = await Order.find({ farmerId: farmer._id })
+    .populate('customerId', 'name')
+    .populate('marketId', 'name')
+    .sort('-createdAt')
+    .limit(5);
+
+  const shaped = orders.map((o) => ({
+    id: o._id,
+    customer: o.customerId?.name || 'Unknown',
+    market: o.marketId?.name || '',
+    items: o.items.length,
+    total: o.totalAmount,
+    pickupDate: o.pickupDate,
+    status: o.status,
+  }));
+
+  return ok(res, shaped);
+});
+
+// ────────────────────────────────────────────────────────────
+// FARMER ORDER STATS — counts for Orders page stat strip
+// ────────────────────────────────────────────────────────────
+export const farmerOrderStats = asyncHandler(async (req, res) => {
+  const farmer = await FarmerProfile.findOne({ userId: req.user._id });
+  if (!farmer) return fail(res, 'Farmer profile missing', 400);
+
+  const [total, pending, readyForPickup, completed] = await Promise.all([
+    Order.countDocuments({ farmerId: farmer._id }),
+    Order.countDocuments({ farmerId: farmer._id, status: 'placed' }),
+    Order.countDocuments({ farmerId: farmer._id, status: 'ready' }),
+    Order.countDocuments({ farmerId: farmer._id, status: 'completed' }),
+  ]);
+
+  return ok(res, { total, pending, readyForPickup, completed });
+});
+
+// ────────────────────────────────────────────────────────────
+// FARMER ANALYTICS — orders/revenue over time for chart
+// ────────────────────────────────────────────────────────────
+export const farmerAnalytics = asyncHandler(async (req, res) => {
+  const farmer = await FarmerProfile.findOne({ userId: req.user._id });
+  if (!farmer) return fail(res, 'Farmer profile missing', 400);
+
+  const range = req.query.range || '7D';
+  const daysMap = { '7D': 7, '30D': 30, '3M': 90, '12M': 365 };
+  const days = daysMap[range] || 7;
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const raw = await Order.aggregate([
+    { $match: { farmerId: farmer._id, createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        orders: { $sum: 1 },
+        revenue: { $sum: '$totalAmount' },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const data = raw.map((r) => ({ label: r._id, orders: r.orders, revenue: r.revenue }));
+  return ok(res, data);
 });

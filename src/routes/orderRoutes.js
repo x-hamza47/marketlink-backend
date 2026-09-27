@@ -16,6 +16,9 @@ router.patch('/:id/modify', requireRole('customer'), c.modify);
 // ─── Farmer routes ─────────────────────────────────────────
 router.get('/farmer', requireRole('farmer'), c.farmerOrders);
 router.get('/farmer/insights', requireRole('farmer'), c.farmerInsights);
+router.get('/farmer/recent', requireRole('farmer'), c.farmerRecentOrders);
+router.get('/farmer/stats', requireRole('farmer'), c.farmerOrderStats);
+router.get('/farmer/analytics', requireRole('farmer'), c.farmerAnalytics);
 router.patch('/:id/status', requireRole('farmer'), c.updateStatus);
 
 // ─── Shared (owner or admin) ───────────────────────────────

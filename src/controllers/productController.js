@@ -114,3 +114,19 @@ export const categories = asyncHandler(async (req, res) => {
   const cats = await Product.distinct('category', { isAvailable: true, isTemplate: false });
   return ok(res, cats);
 });
+
+export const myProducts = asyncHandler(async (req, res) => {
+  const farmer = await getFarmerProfile(req.user._id);
+  const products = await Product.find({ farmerId: farmer._id, isTemplate: false }).sort('-createdAt');
+  return ok(res, products);
+});
+
+export const myProductStats = asyncHandler(async (req, res) => {
+  const farmer = await getFarmerProfile(req.user._id);
+  const [total, available, soldOut] = await Promise.all([
+    Product.countDocuments({ farmerId: farmer._id, isTemplate: false }),
+    Product.countDocuments({ farmerId: farmer._id, isTemplate: false, isAvailable: true, stockQuantity: { $gt: 0 } }),
+    Product.countDocuments({ farmerId: farmer._id, isTemplate: false, stockQuantity: 0 }),
+  ]);
+  return ok(res, { total, available, soldOut });
+});

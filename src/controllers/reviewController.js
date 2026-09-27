@@ -67,3 +67,84 @@ export const remove = asyncHandler(async (req, res) => {
   await recalcFarmerRating(review.farmerId);
   return ok(res, null, 'Review removed');
 });
+
+// ────────────────────────────────────────────────────────────
+// MY REVIEWS — Farmer views reviews on their own products
+// ────────────────────────────────────────────────────────────
+export const myReviews = asyncHandler(async (req, res) => {
+  const farmer = await FarmerProfile.findOne({ userId: req.user._id });
+  if (!farmer) return fail(res, 'Farmer profile missing', 400);
+
+  const {
+    search, rating, unansweredOnly,
+    page = 1, limit = 10, sort = '-createdAt',
+  } = req.query;
+
+  const filter = { farmerId: farmer._id };
+  if (rating) filter.rating = Number(rating);
+  if (unansweredOnly === 'true') {
+    filter.$or = [{ farmerResponse: { $exists: false } }, { farmerResponse: '' }];
+  }
+
+  let productIds = null;
+  let customerIds = null;
+  if (search) {
+    const re = new RegExp(search, 'i');
+    const Product = (await import('../models/Product.js')).default;
+    const User = (await import('../models/User.js')).default;
+    const [matchedProducts, matchedUsers] = await Promise.all([
+      Product.find({ name: re }).select('_id'),
+      User.find({ name: re }).select('_id'),
+    ]);
+    productIds = matchedProducts.map((p) => p._id);
+    customerIds = matchedUsers.map((u) => u._id);
+    filter.$or = [
+      { productId: { $in: productIds } },
+      { customerId: { $in: customerIds } },
+    ];
+  }
+
+  const [reviews, total] = await Promise.all([
+    Review.find(filter)
+      .populate('customerId', 'name')
+      .populate('productId', 'name')
+      .sort(`${sort} _id`)
+      .skip((page - 1) * limit)
+      .limit(Number(limit)),
+    Review.countDocuments(filter),
+  ]);
+
+  const shaped = reviews.map((r) => ({
+    id: r._id,
+    customer: r.customerId?.name || 'Unknown',
+    product: r.productId?.name || '',
+    rating: r.rating,
+    comment: r.comment,
+    date: r.createdAt,
+    response: r.farmerResponse || null,
+  }));
+
+  return ok(res, {
+    items: shaped,
+    total,
+    page: Number(page),
+    pages: Math.ceil(total / limit),
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+// MY REVIEW STATS — Farmer's review summary
+// ────────────────────────────────────────────────────────────
+export const myReviewStats = asyncHandler(async (req, res) => {
+  const farmer = await FarmerProfile.findOne({ userId: req.user._id });
+  if (!farmer) return fail(res, 'Farmer profile missing', 400);
+
+  const reviews = await Review.find({ farmerId: farmer._id });
+  const total = reviews.length;
+  const avgRating = total
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / total).toFixed(1)
+    : 0;
+  const unanswered = reviews.filter((r) => !r.farmerResponse).length;
+
+  return ok(res, { total, avgRating, unanswered });
+});

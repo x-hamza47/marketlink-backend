@@ -5,6 +5,8 @@ import { verifyJWT, requireRole } from '../middleware/auth.js';
 const router = Router();
 router.get('/', c.list);
 router.post('/template', verifyJWT, requireRole('farmer'), c.createTemplate);
+router.get('/mine/list', verifyJWT, requireRole('farmer'), c.myProducts);
+router.get('/mine/stats', verifyJWT, requireRole('farmer'), c.myProductStats);
 router.get('/:id', c.getOne);
 router.post('/', verifyJWT, requireRole('farmer'), c.create);
 router.put('/:id', verifyJWT, requireRole('farmer'), c.update);
