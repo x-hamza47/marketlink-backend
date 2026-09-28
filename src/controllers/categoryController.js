@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok, fail } from '../utils/response.js';
 
 export const list = asyncHandler(async (req, res) =>
-  ok(res, await Category.find({ isActive: true })));
+  ok(res, await Category.find().sort('-createdAt')));
 
 export const create = asyncHandler(async (req, res) =>
   ok(res, await Category.create(req.body), 'Category created', 201));
@@ -17,4 +17,11 @@ export const update = asyncHandler(async (req, res) => {
 export const remove = asyncHandler(async (req, res) => {
   await Category.findByIdAndDelete(req.params.id);
   return ok(res, null, 'Deleted');
+});
+
+export const stats = asyncHandler(async (req, res) => {
+  const total = await Category.countDocuments();
+  const active = await Category.countDocuments({ isActive: true });
+  const inactive = total - active;
+  return ok(res, { total, active, inactive });
 });

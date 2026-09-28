@@ -9,6 +9,7 @@ const reviewSchema = new mongoose.Schema(
     rating:         { type: Number, min: 1, max: 5, required: true },
     comment:        { type: String, default: '' },
     farmerResponse: { type: String, default: '' },
+     status: { type: String, enum: ['visible', 'flagged', 'hidden'], default: 'visible' },
   },
   { timestamps: true }
 );
