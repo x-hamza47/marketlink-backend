@@ -6,6 +6,7 @@ import { ok, fail } from '../utils/response.js';
 import { placeOrder } from '../services/orderService.js';
 import { createNotification } from '../services/notificationService.js';
 import { sendEmail } from '../services/emailService.js';
+import Review from '../models/Review.js';
 
 // ────────────────────────────────────────────────────────────
 // CREATE — Customer places an order
@@ -23,7 +24,17 @@ export const myOrders = asyncHandler(async (req, res) => {
     .populate({ path: 'farmerId', select: 'stallName location' })
     .populate('marketId', 'name address')
     .sort('-createdAt');
-  return ok(res, orders);
+
+  const orderIds = orders.map((o) => o._id);
+  const reviewedIds = await Review.find({ orderId: { $in: orderIds } }).distinct('orderId');
+  const reviewedSet = new Set(reviewedIds.map(String));
+
+  const shaped = orders.map((o) => ({
+    ...o.toObject(),
+    hasReview: reviewedSet.has(String(o._id)),
+  }));
+
+  return ok(res, shaped);
 });
 
 // ────────────────────────────────────────────────────────────
