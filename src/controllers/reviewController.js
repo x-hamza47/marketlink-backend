@@ -37,15 +37,26 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const byFarmer = asyncHandler(async (req, res) => {
-  const reviews = await Review.find({ farmerId: req.params.id })
+  const reviews = await Review.find({ farmerId: req.params.id, status: { $ne: 'hidden' } })
     .populate('customerId', 'name')
+    .populate('productId', 'name')
     .sort('-createdAt');
   return ok(res, reviews);
 });
 
 export const byProduct = asyncHandler(async (req, res) => {
-  const reviews = await Review.find({ productId: req.params.id })
+  const ordersWithProduct = await Order.find({ 'items.productId': req.params.id }).select('_id');
+  const orderIds = ordersWithProduct.map(o => o._id);
+
+  const reviews = await Review.find({
+    $or: [
+      { productId: req.params.id },
+      { orderId: { $in: orderIds } },
+    ],
+    status: { $ne: 'hidden' },
+  })
     .populate('customerId', 'name')
+    .populate('productId', 'name')
     .sort('-createdAt');
   return ok(res, reviews);
 });

@@ -37,6 +37,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
 export const getProducts = asyncHandler(async (req, res) => {
   const products = await Product.find({
     farmerId: req.params.id, isAvailable: true
+  }).populate({
+    path: 'farmerId',
+    populate: [
+      { path: 'userId', select: 'name' },
+      { path: 'markets.marketId', select: 'name address' },
+    ],
   });
   return ok(res, products);
 });

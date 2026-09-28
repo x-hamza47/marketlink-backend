@@ -5,7 +5,7 @@ import { ok } from '../utils/response.js';
 export const toggleFavorite = asyncHandler(async (req, res) => {
   const { farmerId } = req.params;
   const user = await User.findById(req.user._id);
-  const idx = user.favorites.findIndex(f => f.toString() === farmerId);
+  const idx = user.favorites.findIndex(f => f && f.toString() === farmerId);
 
   if (idx >= 0) {
     user.favorites.splice(idx, 1);
@@ -21,16 +21,19 @@ export const listFavorites = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
     .populate({
       path: 'favorites',
-      populate: { path: 'userId', select: 'name email phone' }
+      populate: [
+        { path: 'userId', select: 'name email phone' },
+        { path: 'markets.marketId', select: 'name address operatingDays timings' },
+      ],
     });
-  return ok(res, user.favorites);
+  const validFavorites = (user.favorites || []).filter(Boolean);
+  return ok(res, validFavorites);
 });
-
 
 export const toggleFavoriteProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
   const user = await User.findById(req.user._id);
-  const idx = user.favoriteProducts.findIndex(p => p.toString() === productId);
+  const idx = user.favoriteProducts.findIndex(p => p && p.toString() === productId);
 
   if (idx >= 0) {
     user.favoriteProducts.splice(idx, 1);
@@ -46,7 +49,14 @@ export const listFavoriteProducts = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
     .populate({
       path: 'favoriteProducts',
-      populate: { path: 'farmerId', populate: { path: 'userId', select: 'name' } }
+      populate: {
+        path: 'farmerId',
+        populate: [
+          { path: 'userId', select: 'name email phone' },
+          { path: 'markets.marketId', select: 'name address operatingDays timings' },
+        ],
+      },
     });
-  return ok(res, user.favoriteProducts);
+  const validProducts = (user.favoriteProducts || []).filter(Boolean);
+  return ok(res, validProducts);
 });
