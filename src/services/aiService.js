@@ -35,9 +35,8 @@ ${message}
     })
 
     return response.text
-  } catch (e) {
-    console.error('Gemini API error:', e)
-
-    return `I couldn't reach the assistant right now. Try searching products directly.`
-  }
+ } catch (e) {
+  console.error('Gemini API error:', e)
+  return `DEBUG: ${e.status || ''} ${e.message}`
+}
 }

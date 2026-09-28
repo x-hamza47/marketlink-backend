@@ -24,17 +24,22 @@ export const getOne = asyncHandler(async (req, res) => {
 });
 
 export const nearby = asyncHandler(async (req, res) => {
-  const { lat, lng, radiusKm = 10, day, search } = req.query;
+  const { lat, lng, radiusKm, day, search } = req.query;
   if (!lat || !lng) return fail(res, 'lat and lng required');
+
+  const geoNearStage = {
+    near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+    distanceField: 'distanceMeters',
+    spherical: true,
+  };
+
+  if (radiusKm && Number(radiusKm) > 0) {
+    geoNearStage.maxDistance = Number(radiusKm) * 1000;
+  }
 
   const pipeline = [
     {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
-        distanceField: 'distanceMeters',
-        maxDistance: Number(radiusKm) * 1000,
-        spherical: true,
-      },
+      $geoNear: geoNearStage,
     },
   ];
 
